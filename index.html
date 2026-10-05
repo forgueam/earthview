@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earth View</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  .layer {
+    position: fixed; inset: 0;
+    background: #000 center / cover no-repeat;
+    opacity: 0; transition: opacity 2s ease;
+  }
+  .layer.on { opacity: 1; }
+  #cap {
+    position: fixed; left: 2.5vw; bottom: 2.5vh;
+    font: 500 clamp(14px, 1.6vw, 28px)/1.2 "Helvetica Neue", Arial, sans-serif;
+    color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.8);
+    opacity: .85;
+  }
+  @media (prefers-reduced-motion: reduce) { .layer { transition: none; } }
+</style>
+</head>
+<body>
+<div class="layer" id="a"></div>
+<div class="layer" id="b"></div>
+<div id="cap"></div>
+<script>
+  // ?interval=seconds (default 300). ?caption=0 hides location text.
+  const p = new URLSearchParams(location.search);
+  const INTERVAL = Math.max(10, +p.get('interval') || 300) * 1000;
+  const SHOW_CAP = p.get('caption') !== '0';
+
+  const layers = [document.getElementById('a'), document.getElementById('b')];
+  const cap = document.getElementById('cap');
+  let list = [], front = 0, last = -1;
+
+  function pick() {
+    let i;
+    do { i = Math.floor(Math.random() * list.length); } while (i === last && list.length > 1);
+    last = i;
+    return list[i];
+  }
+
+  function show(tries = 0) {
+    if (tries > 5) return setTimeout(show, INTERVAL);
+    const item = pick();
+    const img = new Image();
+    img.onload = () => {
+      const back = 1 - front;
+      layers[back].style.backgroundImage = `url("${item.image}")`;
+      layers[back].classList.add('on');
+      layers[front].classList.remove('on');
+      front = back;
+      cap.textContent = SHOW_CAP ? [item.region, item.country].filter(Boolean).join(', ') : '';
+      setTimeout(show, INTERVAL);
+    };
+    img.onerror = () => show(tries + 1);
+    img.src = item.image;
+  }
+
+  fetch('earthview.json')
+    .then(r => r.json())
+    .then(d => { list = d.filter(x => x.image); show(); })
+    .catch(() => { cap.textContent = 'earthview.json failed to load'; });
+</script>
+</body>
+</html>
